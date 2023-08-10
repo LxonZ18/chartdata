@@ -1,0 +1,151 @@
+from tkinter import *
+from bs4 import BeautifulSoup
+import urllib
+from urllib import request
+from datetime import datetime
+import csv
+
+root = Tk()
+root.title('Kurse')
+root.geometry("580x220+948+0")
+root.config(bg="black")
+
+previous = False
+
+# Get Current Time
+now = datetime.now()
+current_time = now.strftime("%I:%M:%S %p")
+
+# Create a Frame
+my_frame = Frame(root, bg="black")
+my_frame.pack(pady=20)
+
+# Add bitcoin price label
+bit_label = Label(my_frame, text='TEST',
+                  font=("Helvetica", 45),
+                  bg="black",
+                  fg="green",
+                  bd=0)
+tagestief_label = Label(my_frame, text='TEST',
+                  font=("Helvetica", 15),
+                  bg="black",
+                  fg="green",
+                  bd=0)
+tageshoch_label = Label(my_frame, text='TEST',
+                  font=("Helvetica", 15),
+                  bg="black",
+                  fg="green",
+                  bd=0)
+monat_perf_label = Label(my_frame, text='TEST',
+                  font=("Helvetica", 15),
+                  bg="black",
+                  fg="green",
+                  bd=0)
+wochen_perf_label = Label(my_frame, text='TEST',
+                  font=("Helvetica", 15),
+                  bg="black",
+                  fg="green",
+                  bd=0)
+bit_label.grid(row=0, column=1, padx=20, sticky="s")
+tagestief_label.grid(row=1, column=1, padx=20, sticky="s")
+tageshoch_label.grid(row=2, column=1, padx=20, sticky="s")
+monat_perf_label.grid(row=3, column=1, padx=20, sticky="s")
+wochen_perf_label.grid(row=4, column=1, padx=20, sticky="s")
+# Latest Price Up/Down
+latest_price = Label(my_frame, text="move test",
+                     font=("Helvetica", 8),
+                     bg="black",
+                     fg="grey")
+latest_price.grid(row=6, column=1, sticky="n")
+
+# Grab the bitcoin price
+
+def speichere_goldpreis(goldpreis):
+    datei_name = 'goldpreis.csv'
+    aktuelles_datum = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    with open(datei_name, 'a', newline='') as csvfile:
+        schreiber = csv.writer(csvfile,delimiter=";")
+        schreiber.writerow([aktuelles_datum, goldpreis])
+
+
+def Update():
+    global previous
+    # Grab Bitcoin Price
+    page = urllib.request.urlopen("https://www.wallstreet-online.de/rohstoffe/oelpreis-brent").read()
+    html = BeautifulSoup(page, "html.parser")
+    price_large = html.find(class_="float-start quoteValue")
+    tages_hoch = html.find(class_="instData")
+    performence = html.find(class_="module c2 omega")
+    # convert to string so we can slice
+    price_large1 = str(price_large)
+    #diagramm(data)
+    # Grab a slice that contains the price
+    price = price_large1[83:88]
+    tageshoch_span = html.find('td', string='Tageshoch').find_next_sibling('td').find('span')
+    tageshoch_wert = tageshoch_span.get_text()
+    tagestief_span = html.find('td', string='Tagestief').find_next_sibling('td').find('span')
+    tagestief_wert = tagestief_span.get_text()
+    monats_perf_span = html.find('td', string='1 Monat').find_parent('tr').find_all('td', recursive=False)
+    desired_td = monats_perf_span[2]
+    monats_perf_span2 = desired_td.find('span')
+    monats_perf_wert = monats_perf_span2.get_text(strip=True)
+    wochen_perf_span = html.find('td', string='1 Woche').find_parent('tr').find_all('td', recursive=False)
+    woche = wochen_perf_span[2]
+    wochen_perf_span2 = woche.find("span")
+    wochen_perf_wert = wochen_perf_span2.get_text(strip=True)
+    #Performence
+    
+    now = datetime.now()
+
+    # Update our bitcoin label
+    bit_label.config(text=f'Brent ÖL {price} €')
+    tagestief_label.config(text=f'Tagestief {tagestief_wert} €')
+    tageshoch_label.config(text=f'Tageshoch {tageshoch_wert} €')
+    monat_perf_label.config(text=f'Monats Performance {monats_perf_wert} €')
+    wochen_perf_label.config(text=f'Wochen Performance {wochen_perf_wert} €')
+
+    root.after(60000, Update)
+    print("Updated")
+    # Get Current Time
+    current_time = now.strftime("%I:%M:%S %p")
+
+    # Update the status bar
+    status_bar.config(text=f'Last Updated: {current_time}   ')
+
+    # grab current Price
+    current = price
+
+    # remove the comma
+    current = current.replace(',', '')
+
+    if previous:
+        if float(previous) > float(current):
+            latest_price.config(
+                text=f'Price Down {round(float(previous) - float(current), 2)}', fg="red")
+
+        elif float(previous) == float(current):
+            latest_price.config(text="Price Unchanged", fg="grey")
+
+        else:
+            latest_price.config(
+                text=f'Price Up {round(float(current) - float(previous), 2)}', fg="green")
+    else:
+        previous = current
+        latest_price.config(text="Price Unchanged", fg="grey")
+
+# Create status bar
+status_bar = Label(root, text=f'Last Updated {current_time}   ',
+                   bd=0,
+                   anchor=E,
+                   bg="black",
+                   fg="grey")
+
+status_bar.pack(fill=X, side=BOTTOM, ipady=2)
+prices = []
+x = []
+z = 0
+# On program start, run update function
+Update()
+
+root.mainloop()
